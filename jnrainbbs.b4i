@@ -58,9 +58,9 @@ Private Sub Application_Start (Nav As NavigationController)
 	clv1.Initialize(Me, "clv1",100%X)
 	Page1.RootPanel.AddView(clv1.AsView, 0, 0, 100%x, 100%y-40dip)
 	Log(File.DirAssets)
-	Log(File.DirDocuments)
-	Log(File.DirLibrary)
-	Log(File.DirTemp)
+	'Log(File.DirDocuments)
+	'Log(File.DirLibrary)
+	'Log(File.DirTemp)
 End Sub
 
 Private Sub Page1_Resize(Width As Int, Height As Int)
@@ -212,7 +212,9 @@ Sub loadcontent(jsonresult As String)
 	Dim posts As List
 	Dim map2 As Map
 	Dim content1 As String 
-	'content1="<script src="&File.DirAssets&"'/jsinterface.js'  language='javascript'></script>"
+	content1="<link rel=" & Chr(34) &"stylesheet" & Chr(34) &" type=" & Chr(34) & "text/css" & Chr(34) &" href=" & Chr(34) &"File:///"&File.DirAssets&"/mystyle.css" & Chr(34) &" />"
+	'"<img src=File:///"&File.DirAssets&"/icon-60.png>"
+	'"<script src="&File.DirAssets&"'/jsinterface.js'  language='javascript'></script>"
 	posts= map1.get("posts") '根据Key的名称
 	For i =0 To posts.Size-1
         map2=posts.Get(i)

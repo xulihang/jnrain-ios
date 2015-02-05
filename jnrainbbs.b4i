@@ -1,0 +1,314 @@
+﻿Version=1.8
+IconFile=
+NumberOfModules=3
+Module1=HttpJob
+Module2=HttpUtils2Service
+Module3=CustomListView
+Build1=jnrain,org.xulihang.jnrain
+NumberOfFiles=2
+File1=main.bil
+File2=thread.bil
+NumberOfLibraries=5
+Library1=icore
+Library2=ijson
+Library3=ihud
+Library4=ihttp
+Library5=istringutils
+@EndOfDesignText@
+'Code module
+#Region  Project Attributes 
+	#ApplicationLabel: 江南听雨BBS
+	#Version: 1.0.0 
+	'Orientation possible values: Portrait, LandscapeLeft, LandscapeRight and PortraitUpsideDown
+	#iPhoneOrientations: Portrait, LandscapeLeft, LandscapeRight
+	#iPadOrientations: Portrait, LandscapeLeft, LandscapeRight, PortraitUpsideDown
+#End Region
+
+Sub Process_Globals
+	'These global variables will be declared once when the application starts.
+	'Public variables can be accessed from all modules.
+	Public App As Application
+	Public NavControl As NavigationController
+	Private Page1 As Page
+	Private Page2 As Page
+	Private WebView1 As WebView
+	Private currentposition=1 As Int  '目前位置：1未加载大区列表，2为大区列表，3为版面列表
+	Private currentpage=1 As Int  '目前页面
+	Private parameter As String '查看版面thread列表的参数
+	Private URL As String '查看thread内容的参数
+	Private boardName(35) As String
+	Private hd As HUD
+	Private clv1 As CustomListView
+	Private ActionSheet1 As ActionSheet
+End Sub
+
+Private Sub Application_Start (Nav As NavigationController)
+	NavControl = Nav
+	Page1.Initialize("Page1")
+	Page1.RootPanel.Color = Colors.White
+	Page1.RootPanel.LoadLayout("main")
+	Page1.Title = "江南听雨"
+	Page2.Initialize("Page2")
+	Page2.RootPanel.Color = Colors.White
+	Page2.RootPanel.LoadLayout("thread")
+	Page2.Title = "帖子内容"
+	ActionSheet1.Initialize("actionsheet1","查看", "Cancel", "", Array As String("十大热帖","版块列表"))
+	NavControl.ShowPage(Page1)
+	'NavControl.NavigationBarVisible=False
+	clv1.Initialize(Me, "clv1",100%X)
+	Page1.RootPanel.AddView(clv1.AsView, 0, 0, 100%x, 100%y-40dip)
+	Log(File.DirAssets)
+	Log(File.DirDocuments)
+	Log(File.DirLibrary)
+	Log(File.DirTemp)
+End Sub
+
+Private Sub Page1_Resize(Width As Int, Height As Int)
+	
+End Sub
+
+Private Sub Application_Background
+	
+End Sub
+
+
+Sub JobDone (job As HttpJob)
+	Log("JobName = " & job.JobName & ", Success = " & job.Success)
+	If job.Success = True Then
+		Select job.JobName
+			Case "get"
+				loadTopten(job.GetString)
+			Case "getsec"
+			    loadSec(job.GetString)
+			Case "getThread"
+			    loadThread(job.GetString,False)
+			Case "getThread2"
+			    loadThread(job.GetString,True)
+			Case "getcontent"
+			    loadcontent(job.GetString)
+		End Select
+	Else
+		Log("Error: " & job.ErrorMessage)
+		hd.ToastMessageShow("Error: " & job.ErrorMessage, True)
+	End If
+	job.Release
+End Sub
+
+Sub LoadSection
+    currentposition=2
+    'WebView1.Visible=False
+    'clv1.AsView.Visible=True
+	clv1.Clear
+    clv1.AddTextItem("站务系统",0)
+	clv1.AddTextItem("江南大学",1)
+	clv1.AddTextItem("文化艺术",2)
+	clv1.AddTextItem("电脑技术",3)
+	clv1.AddTextItem("学术科学",4)
+	clv1.AddTextItem("菁菁校园",5)
+	clv1.AddTextItem("知性感性",6)
+	clv1.AddTextItem("休闲娱乐",7)
+	clv1.AddTextItem("社团群体",8)
+	clv1.AddTextItem("校务邮箱",9)
+	clv1.AddTextItem("服务专区",10)
+End Sub
+
+Sub clv1_ItemClick (position As Int, Value As Object)
+    If currentposition=2 Then
+        Dim getsec As HttpJob
+	    getsec.Initialize("getsec",Me)
+	    getsec.Download("http://bbs.jiangnan.edu.cn/rainstyle/boards_json.php?sec="&Value)
+		Log(Value)
+	Else If currentposition=3 Then
+	    parameter=Value
+	    Dim getThread As HttpJob
+		getThread.Initialize("getThread",Me)
+	    getThread.Download("http://bbs.jiangnan.edu.cn/rainstyle/board_json.php?name="&Value&"&page=1")
+		Log(Value)
+	Else If currentposition=4 Then
+	    If Value="next" Then
+		    NextPage
+		Else If Value="previous" Then
+		    PreviousPage
+		Else
+	        URL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
+	        Dim getcontent As HttpJob
+		    getcontent.Initialize("getcontent",Me)
+	        getcontent.Download(URL)
+		    Log(Value)
+		End If
+	Else If currentposition=0 Then
+	    URL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
+	    Dim getcontent As HttpJob
+		getcontent.Initialize("getcontent",Me)
+	    getcontent.Download(URL)
+	End If
+End Sub
+
+Sub loadSec(jsonresult As String)
+    currentposition=3
+    clv1.Clear
+    Dim JSON As JSONParser
+    'JSON.Initialize(File.ReadString(File.DirAssets, "out.json")) 'Read the text from a file.
+	JSON.Initialize(jsonresult)
+	Dim map1 As Map
+    map1 = JSON.Nextobject
+    Dim list1 As List
+	list1= map1.get("boards")
+	Log("size:"&list1.Size)
+	For i =0 To list1.Size-1
+	    Dim map2 As Map
+        map2 = list1.Get(i)
+		Dim name As String
+		name = map2.Get("name")
+		Dim id As String
+		id = map2.Get("id")
+		clv1.AddTextItem(name,id)
+		Log(id)
+	Next
+End Sub
+
+Sub loadThread(jsonresult As String, showPreviousPage As Boolean)
+    currentposition=4
+    clv1.Clear
+	If showPreviousPage=True Then
+	    clv1.AddTextItem("上一页","previous")
+	End If
+    Dim JSON As JSONParser
+	JSON.Initialize(jsonresult)
+	Dim map1 As Map
+    map1 = JSON.Nextobject
+    Dim list1 As List
+	list1= map1.get("posts")
+	Log("size:"&list1.Size)
+	For i =0 To list1.Size-1
+	    Dim map2 As Map
+        map2 = list1.Get(i)
+		Dim name As String
+		name = map2.Get("title")
+		Dim id As String
+		id = map2.Get("id")
+		boardName(i) = map2.Get("board")
+		clv1.AddTextItem(name,id)
+		If i=list1.Size-1 Then
+		    clv1.AddTextItem("下一页","next")
+		End If
+	Next
+End Sub
+
+Sub loadcontent(jsonresult As String)
+    clv1.Clear
+    currentposition=5
+	currentpage=1
+	NavControl.ShowPage(Page2)
+    'ListView1.Clear
+	'clv1.AsView.Visible=False
+    'WebView1.Visible=True
+    Dim JSON As JSONParser
+    JSON.Initialize(jsonresult)
+    Dim map1 As Map
+    map1 = JSON.Nextobject
+    Log(map1.Size)
+    'm = map1.GetKeyAt(12)
+	Dim posts As List
+	Dim map2 As Map
+	Dim content1 As String 
+	'content1="<script src="&File.DirAssets&"'/jsinterface.js'  language='javascript'></script>"
+	posts= map1.get("posts") '根据Key的名称
+	For i =0 To posts.Size-1
+        map2=posts.Get(i)
+		If i>0 Then
+		content1=content1 & "<br />" &"-------------------"& "<br />" & map2.Get("content")
+		Else
+		content1=content1 & map2.Get("content")
+		End If
+	Next
+	content1=content1.Replace("js/xheditor-1.1.9/xheditor_emot/default/","http://bbs.jiangnan.edu.cn/wForum/js/xheditor-1.1.9/xheditor_emot/default/")
+	content1=content1.Replace("emot/jn/","http://bbs.jiangnan.edu.cn/wForum/emot/jn/")
+	'content1=content1.Replace("audioplayer/audio-player.js",File.DirAssets&"/audio-player.js")
+	'content1=content1.Replace("audioplayer/player.swf",File.DirAssets&"/player.swf")
+	content1=content1.Replace("/attachments/","http://bbs.jiangnan.edu.cn/attachments/")
+	'content1=content1.Replace("<a href=","<a href=" & Chr(34) &"javascript:void(0)" & Chr(34) &" onclick=getData(")
+	'content1=content1.Replace(">下载",")>下载")
+	Log(content1)
+	WebView1.LoadHtml(content1)
+End Sub
+
+
+Sub loadTopX
+    Dim get As HttpJob
+	get.Initialize("get",Me)
+	get.Download("http://bbs.jiangnan.edu.cn/rainstyle/topten_json.php")
+End Sub
+
+Sub loadTopten(jsonresult As String)
+    currentposition=0
+    clv1.Clear
+    Dim JSON As JSONParser
+	JSON.Initialize(jsonresult)
+	Dim map1 As Map
+    map1 = JSON.Nextobject
+    Dim list1 As List
+	list1= map1.get("posts")
+	Log("size:"&list1.Size)
+	For i =0 To list1.Size-1
+	    Dim map2 As Map
+        map2 = list1.Get(i)
+		Dim name As String
+		name = map2.Get("title")
+		Dim id As String
+		id = map2.Get("id")
+
+		boardName(i) = map2.Get("board")
+		clv1.AddTextItem(name,id)
+	Next
+End Sub
+
+'查看帖子列表的下一页
+Sub NextPage
+    Log(currentpage)
+	Log(parameter)
+	currentpage=currentpage+1
+	Dim getThread2 As HttpJob
+	getThread2.Initialize("getThread2",Me)
+	getThread2.Download("http://bbs.jiangnan.edu.cn/rainstyle/board_json.php?name="&parameter&"&page="&currentpage)
+End Sub
+
+'查看帖子列表的上一页
+Sub PreviousPage
+    Log(currentpage)
+	Log(parameter)
+	If currentpage=1 Then
+	    hd.ToastMessageShow("已经是第一页了",False)
+	Else
+	    currentpage=currentpage-1
+	End If
+	Dim getThread2 As HttpJob
+	getThread2.Initialize("getThread2",Me)
+	getThread2.Download("http://bbs.jiangnan.edu.cn/rainstyle/board_json.php?name="&parameter&"&page="&currentpage)
+End Sub
+
+' Page1 TopRightBar buttons event routine
+Private Sub Page1_BarButtonClick (Tag As String)
+	ActionSheet1.Show(Page1.RootPanel)
+End Sub
+
+' Page2 TopRightBar buttons event routine
+Private Sub Page2_BarButtonClick (Tag As String)
+	currentpage=currentpage+1
+    URL=URL&"&page="&currentpage
+	Dim getcontent As HttpJob
+    getcontent.Initialize("getcontent",Me)
+	getcontent.Download(URL)
+End Sub
+
+' ActionSheet Pages event routine
+Private Sub actionsheet1_Click(Item As String)
+	Select Item
+	Case "十大热帖"
+		currentpage=1
+	    loadTopX
+	Case "版块列表"
+		currentpage=1
+	    LoadSection
+	End Select
+End Sub

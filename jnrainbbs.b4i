@@ -33,9 +33,10 @@ Sub Process_Globals
 	Private Page2 As Page
 	Private WebView1 As WebView
 	Private currentposition=1 As Int  '目前位置：1未加载大区列表，2为大区列表，3为版面列表
-	Private currentpage=1 As Int  '目前页面
+	Private currentpage=1 As Int  '目前帖子列表页面
+	Private currentpageOfThread=1 As Int  '目前帖子页面
 	Private parameter As String '查看版面thread列表的参数
-	Private URL As String '查看thread内容的参数
+	Private URL As String '查看thread内容的参数，方便换页设为全局变量
 	Private boardName(35) As String
 	Private hd As HUD
 	Private clv1 As CustomListView
@@ -169,6 +170,7 @@ End Sub
 
 Sub loadThread(jsonresult As String, showPreviousPage As Boolean)
     currentposition=4
+	currentpageOfThread=1
     clv1.Clear
 	If showPreviousPage=True Then
 	    clv1.AddTextItem("上一页","previous")
@@ -237,6 +239,7 @@ End Sub
 
 
 Sub loadTopX
+    currentpageOfThread=1
     Dim get As HttpJob
 	get.Initialize("get",Me)
 	get.Download("http://bbs.jiangnan.edu.cn/rainstyle/topten_json.php")
@@ -296,8 +299,8 @@ End Sub
 
 ' Page2 TopRightBar buttons event routine
 Private Sub Page2_BarButtonClick (Tag As String)
-	currentpage=currentpage+1
-    URL=URL&"&page="&currentpage
+	currentpageOfThread=currentpageOfThread+1
+    URL=URL&"&page="&currentpageOfThread
 	Dim getcontent As HttpJob
     getcontent.Initialize("getcontent",Me)
 	getcontent.Download(URL)

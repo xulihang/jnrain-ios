@@ -5,15 +5,18 @@ Module1=HttpJob
 Module2=HttpUtils2Service
 Module3=CustomListView
 Build1=jnrain,org.xulihang.jnrain
-NumberOfFiles=2
-File1=main.bil
-File2=thread.bil
-NumberOfLibraries=5
+NumberOfFiles=4
+File1=leftpage.bil
+File2=main.bil
+File3=setting.bil
+File4=thread.bil
+NumberOfLibraries=6
 Library1=icore
 Library2=ijson
 Library3=ihud
 Library4=ihttp
 Library5=istringutils
+Library6=isidemenu
 @EndOfDesignText@
 'Code module
 #Region  Project Attributes 
@@ -31,20 +34,27 @@ Sub Process_Globals
 	Public NavControl As NavigationController
 	Private Page1 As Page
 	Private Page2 As Page
+	Private SettingPage As Page
 	Private WebView1 As WebView
 	Private currentposition=1 As Int  '目前位置：1未加载大区列表，2为大区列表，3为版面列表
 	Private currentpage=1 As Int  '目前帖子列表页面
 	Private currentpageOfThread=1 As Int  '目前帖子页面
 	Private parameter As String '查看版面thread列表的参数
-	Private URL As String '查看thread内容的参数，方便换页设为全局变量
+	Private TURL As String '查看thread内容的参数，方便换页设为全局变量
 	Private boardName(35) As String
 	Private hd As HUD
 	Private clv1 As CustomListView
+	Private clv2 As CustomListView
 	Private ActionSheet1 As ActionSheet
+	Private smc As SideMenuController
+	Private Switch1 As Switch
 End Sub
 
 Private Sub Application_Start (Nav As NavigationController)
-	NavControl = Nav
+	'NavControl = Nav
+	Dim nc As NavigationController
+    nc.Initialize("nc")
+    NavControl = nc
 	Page1.Initialize("Page1")
 	Page1.RootPanel.Color = Colors.White
 	Page1.RootPanel.LoadLayout("main")
@@ -53,12 +63,28 @@ Private Sub Application_Start (Nav As NavigationController)
 	Page2.RootPanel.Color = Colors.White
 	Page2.RootPanel.LoadLayout("thread")
 	Page2.Title = "帖子内容"
+	SettingPage.Initialize("SettingPage")
+	SettingPage.RootPanel.Color = Colors.White
+	SettingPage.RootPanel.LoadLayout("setting")
+	SettingPage.Title = "设置"
+	Dim leftpage As Page
+	leftpage.Initialize("leftpage")
+	leftpage.RootPanel.Color = Colors.Red
+	leftpage.RootPanel.LoadLayout("leftpage")
 	ActionSheet1.Initialize("actionsheet1","查看", "Cancel", "", Array As String("十大热帖","版块列表"))
-	NavControl.ShowPage(Page1)
+	'NavControl.ShowPage(Page1)
 	'NavControl.NavigationBarVisible=False
 	clv1.Initialize(Me, "clv1",100%X)
+	clv2.Initialize(Me, "clv2",100%X)
 	Page1.RootPanel.AddView(clv1.AsView, 0, 0, 100%x, 100%y-40dip)
+	leftpage.RootPanel.AddView(clv2.AsView,0,80dip,100%x,100%y-80dip)
 	Log(File.DirAssets)
+	smc.Initialize(leftpage, nc, Null)
+	smc.LeftMenuMaxWidth=40%x
+    App.KeyController = smc
+    nc.ShowPage(Page1)
+    Page1.TopLeftButtons = Array(smc.CreateBarButton("left"))
+	loadclv2
 	'Log(File.DirDocuments)
 	'Log(File.DirLibrary)
 	'Log(File.DirTemp)
@@ -72,6 +98,11 @@ Private Sub Application_Background
 	
 End Sub
 
+Sub loadclv2
+    clv2.AddTextItem("十大热帖",0)
+	clv2.AddTextItem("版块列表",1)
+	clv2.AddTextItem("设置",2)
+End Sub
 
 Sub JobDone (job As HttpJob)
 	Log("JobName = " & job.JobName & ", Success = " & job.Success)
@@ -131,20 +162,38 @@ Sub clv1_ItemClick (position As Int, Value As Object)
 		Else If Value="previous" Then
 		    PreviousPage
 		Else
-	        URL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
+	        TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
 	        Dim getcontent As HttpJob
 		    getcontent.Initialize("getcontent",Me)
-	        getcontent.Download(URL)
+	        getcontent.Download(TURL)
 		    Log(Value)
 		End If
 	Else If currentposition=0 Then
-	    URL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
+	    TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
 	    Dim getcontent As HttpJob
 		getcontent.Initialize("getcontent",Me)
-	    getcontent.Download(URL)
+	    getcontent.Download(TURL)
 	End If
 End Sub
 
+Sub clv2_ItemClick (position As Int, Value As Object)
+    Select position
+	    Case 0
+		    smc.CloseMenu
+		    currentpage=1
+		    loadTopX
+		Case 1
+		    smc.CloseMenu
+		    currentpage=1
+		    LoadSection
+		Case 2
+		    smc.CloseMenu
+			If File.Exists(File.DirDocuments,".loadphoto") Then
+			    Switch1.Value=File.ReadString(File.DirDocuments,".loadphoto")
+			End If
+		    NavControl.ShowPage(SettingPage)
+	End Select
+End Sub
 Sub loadSec(jsonresult As String)
     currentposition=3
     clv1.Clear
@@ -230,7 +279,11 @@ Sub loadcontent(jsonresult As String)
 	content1=content1.Replace("emot/jn/","http://bbs.jiangnan.edu.cn/wForum/emot/jn/")
 	'content1=content1.Replace("audioplayer/audio-player.js",File.DirAssets&"/audio-player.js")
 	'content1=content1.Replace("audioplayer/player.swf",File.DirAssets&"/player.swf")
-	content1=content1.Replace("/attachments/","http://bbs.jiangnan.edu.cn/attachments/")
+	If File.Exists(File.DirDocuments,".loadphoto") Then
+	    If File.ReadString(File.DirDocuments,".loadphoto")=True Then
+	        content1=content1.Replace("/attachments/","http://bbs.jiangnan.edu.cn/attachments/")
+		End If
+	End If
 	'content1=content1.Replace("<a href=","<a href=" & Chr(34) &"javascript:void(0)" & Chr(34) &" onclick=getData(")
 	'content1=content1.Replace(">下载",")>下载")
 	Log(content1)
@@ -294,16 +347,27 @@ End Sub
 
 ' Page1 TopRightBar buttons event routine
 Private Sub Page1_BarButtonClick (Tag As String)
-	ActionSheet1.Show(Page1.RootPanel)
+	Select Tag
+		Case "left"
+		    If smc.Tag="opened" Then
+			    smc.Tag="closed"
+			    smc.CloseMenu
+			Else
+			    smc.Tag="opened" 
+			    smc.OpenLeftMenu
+			End If
+		Case "Action"
+			ActionSheet1.Show(Page1.RootPanel)
+	End Select
 End Sub
 
 ' Page2 TopRightBar buttons event routine
 Private Sub Page2_BarButtonClick (Tag As String)
 	currentpageOfThread=currentpageOfThread+1
-    URL=URL&"&page="&currentpageOfThread
+    TURL=TURL&"&page="&currentpageOfThread
 	Dim getcontent As HttpJob
     getcontent.Initialize("getcontent",Me)
-	getcontent.Download(URL)
+	getcontent.Download(TURL)
 End Sub
 
 ' ActionSheet Pages event routine
@@ -316,4 +380,14 @@ Private Sub actionsheet1_Click(Item As String)
 		currentpage=1
 	    LoadSection
 	End Select
+End Sub
+
+Sub Switch1_ValueChanged (Value As Boolean)
+	File.WriteString(File.DirDocuments,".loadphoto",Value)
+	Log(File.ReadString(File.DirDocuments,".loadphoto"))
+End Sub
+
+Sub WebView1_OverrideUrl (URL As String) As Boolean
+    WebView1.LoadHtml("目前不支持点击")
+	hd.ToastMessageShow("目前不支持点击",False)
 End Sub

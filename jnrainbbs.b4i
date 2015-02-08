@@ -5,11 +5,12 @@ Module1=HttpJob
 Module2=HttpUtils2Service
 Module3=CustomListView
 Build1=jnrain,org.xulihang.jnrain
-NumberOfFiles=4
+NumberOfFiles=5
 File1=leftpage.bil
-File2=main.bil
-File3=setting.bil
-File4=thread.bil
+File2=login.bil
+File3=main.bil
+File4=setting.bil
+File5=thread.bil
 NumberOfLibraries=6
 Library1=icore
 Library2=ijson
@@ -35,6 +36,7 @@ Sub Process_Globals
 	Private Page1 As Page
 	Private Page2 As Page
 	Private SettingPage As Page
+	Private LoginPage As Page
 	Private WebView1 As WebView
 	Private currentposition=1 As Int  '目前位置：1未加载大区列表，2为大区列表，3为版面列表
 	Private currentpage=1 As Int  '目前帖子列表页面
@@ -46,8 +48,13 @@ Sub Process_Globals
 	Private clv1 As CustomListView
 	Private clv2 As CustomListView
 	Private ActionSheet1 As ActionSheet
+	Private ActionSheet2 As ActionSheet
 	Private smc As SideMenuController
 	Private Switch1 As Switch
+	Private Button1 As Button
+	Private TextField1 As TextField
+	Private TextField2 As TextField
+	Private loginLabel As Label
 End Sub
 
 Private Sub Application_Start (Nav As NavigationController)
@@ -67,11 +74,16 @@ Private Sub Application_Start (Nav As NavigationController)
 	SettingPage.RootPanel.Color = Colors.White
 	SettingPage.RootPanel.LoadLayout("setting")
 	SettingPage.Title = "设置"
+	LoginPage.Initialize("LoginPage")
+	LoginPage.RootPanel.Color = Colors.White
+	LoginPage.RootPanel.LoadLayout("login")
+	LoginPage.Title = "登录"
 	Dim leftpage As Page
 	leftpage.Initialize("leftpage")
 	leftpage.RootPanel.Color = Colors.Red
 	leftpage.RootPanel.LoadLayout("leftpage")
 	ActionSheet1.Initialize("actionsheet1","查看", "Cancel", "", Array As String("十大热帖","版块列表"))
+	ActionSheet2.Initialize("actionsheet2","帐户", "Cancel", "", Array As String("登录","注销"))
 	'NavControl.ShowPage(Page1)
 	'NavControl.NavigationBarVisible=False
 	clv1.Initialize(Me, "clv1",100%X)
@@ -85,6 +97,12 @@ Private Sub Application_Start (Nav As NavigationController)
     nc.ShowPage(Page1)
     Page1.TopLeftButtons = Array(smc.CreateBarButton("left"))
 	loadclv2
+	loadTopX
+	If File.Exists(File.DirDocuments,".login") Then
+	    If File.ReadString(File.DirDocuments,".login")=0 Then
+		    loginLabel.Text="已登录"
+		End If
+	End If
 	'Log(File.DirDocuments)
 	'Log(File.DirLibrary)
 	'Log(File.DirTemp)
@@ -118,11 +136,16 @@ Sub JobDone (job As HttpJob)
 			    loadThread(job.GetString,True)
 			Case "getcontent"
 			    loadcontent(job.GetString)
+			Case "userlogin"
+			    loginDone(job.GetString)
+			Case "userlogout"
+			    logoutDone(job.GetString)
 		End Select
 	Else
 		Log("Error: " & job.ErrorMessage)
 		hd.ToastMessageShow("Error: " & job.ErrorMessage, True)
 	End If
+	hd.ProgressDialogHide
 	job.Release
 End Sub
 
@@ -247,8 +270,8 @@ Sub loadThread(jsonresult As String, showPreviousPage As Boolean)
 End Sub
 
 Sub loadcontent(jsonresult As String)
-    clv1.Clear
-    currentposition=5
+    'clv1.Clear
+    'currentposition=5
 	currentpage=1
 	NavControl.ShowPage(Page2)
     'ListView1.Clear
@@ -382,12 +405,114 @@ Private Sub actionsheet1_Click(Item As String)
 	End Select
 End Sub
 
+' ActionSheet Pages event routine
+Private Sub actionsheet2_Click(Item As String)
+	Select Item
+	Case "登录"
+	    If File.Exists(File.DirDocuments,".login") Then
+		    If File.ReadString(File.DirDocuments,".login")=0 Then
+			    hd.ToastMessageShow("你已登录",False)
+			Else
+			    smc.CloseMenu
+	            NavControl.ShowPage(LoginPage)
+			End If
+		Else 
+		    smc.CloseMenu
+		    NavControl.ShowPage(LoginPage)
+		End If
+	Case "注销"
+	    If File.Exists(File.DirDocuments,".login") Then
+		    If File.ReadString(File.DirDocuments,".login")=0 Then
+			    hd.ProgressDialogShow("注销中")
+			    Dim userlogout As HttpJob
+	            userlogout.Initialize("userlogout",Me)
+	            userlogout.PostString("http://bbs.jiangnan.edu.cn/rainstyle/apilogout.php","")
+			Else
+	            hd.ToastMessageShow("你未登录",False)
+			End If
+		Else
+		    hd.ToastMessageShow("你未登录过",False)
+		End If
+	End Select
+End Sub
+
 Sub Switch1_ValueChanged (Value As Boolean)
 	File.WriteString(File.DirDocuments,".loadphoto",Value)
 	Log(File.ReadString(File.DirDocuments,".loadphoto"))
 End Sub
 
 Sub WebView1_OverrideUrl (URL As String) As Boolean
-    WebView1.LoadHtml("目前不支持点击")
-	hd.ToastMessageShow("目前不支持点击",False)
+    If URL.Contains("mp3")=True Then
+	    hd.ToastMessageShow("将用系统播放器播放",False)
+	Else
+        WebView1.LoadHtml("目前不支持点击")
+	    hd.ToastMessageShow("目前不支持点击",False)
+	End If
+End Sub
+
+Sub Button1_Click
+    If TextField1.Text="guest" Then
+	    Msgbox("匿名用户不能登录","错误")
+	Else
+        hd.ProgressDialogShow("登录中")
+	    Dim param As String
+	    param="uid="&TextField1.Text&"&psw="&TextField2.Text
+	    Log(param)
+	    Dim userlogin As HttpJob
+	    userlogin.Initialize("userlogin",Me)
+	    userlogin.PostString("http://bbs.jiangnan.edu.cn/rainstyle/apilogin.php",param)
+	End If
+End Sub
+
+Sub loginDone(getjson As String)
+    Log(getjson)
+    Dim JSON As JSONParser
+	JSON.Initialize(getjson)
+	Dim map1 As Map
+    map1 = JSON.Nextobject
+    Dim status As Int
+	status= map1.get("status")
+	Log(status)
+	If  status=0 Then
+		hd.ToastMessageShow("登录成功",True)
+		loginLabel.Text="已登录"
+		NavControl.ShowPage(Page1)
+		File.WriteString(File.DirDocuments,".login","0")
+	Else If status=1 Then 
+	    hd.ToastMessageShow("用户不存在或密码错误",True)
+	Else If status=2 Then
+	    hd.ToastMessageShow("用户名为空",True)
+	Else If status=3 Then
+	    hd.ToastMessageShow("已登录帐号过多",True)
+	Else If status=4 Then
+	    hd.ToastMessageShow("帐户被ban",True)
+	Else If status=5 Then
+	    hd.ToastMessageShow("IP被ban",True)
+	Else If status=6 Then
+	    hd.ToastMessageShow("请勿频繁登录",True)
+	Else If status=7 Then
+	    hd.ToastMessageShow("系统在线人数达到极限",True)	
+	End If
+End Sub
+
+Sub logoutDone(getjson As String)
+    Log(getjson)
+    Dim JSON As JSONParser
+	JSON.Initialize(getjson)
+	Dim map1 As Map
+    map1 = JSON.Nextobject
+    Dim status As Int
+	status= map1.get("status")
+	Log(status)
+	If  status=0 Then
+		hd.ToastMessageShow("注销成功",True)
+		File.WriteString(File.DirDocuments,".login","1")
+		loginLabel.Text="未登录"
+    Else 
+	    hd.ToastMessageShow("注销失败",True)
+	End If
+End Sub
+
+Sub loginLabel_Click
+	ActionSheet2.Show(Page1.RootPanel)
 End Sub

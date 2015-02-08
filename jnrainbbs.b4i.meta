@@ -12,4 +12,4 @@ ModuleClosedNodes3=
 ModuleBookmarks3=
 ModuleBreakpoints3=
 SelectedBuild=0
-UserTypesHint=HttpJob,CustomListView
+UserTypesHint=CustomListView,HttpJob

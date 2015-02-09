@@ -49,6 +49,7 @@ Sub Process_Globals
 	Private clv2 As CustomListView
 	Private ActionSheet1 As ActionSheet
 	Private ActionSheet2 As ActionSheet
+	Private ActionSheet3 As ActionSheet
 	Private smc As SideMenuController
 	Private Switch1 As Switch
 	Private Button1 As Button
@@ -84,6 +85,7 @@ Private Sub Application_Start (Nav As NavigationController)
 	leftpage.RootPanel.LoadLayout("leftpage")
 	ActionSheet1.Initialize("actionsheet1","查看", "Cancel", "", Array As String("十大热帖","版块列表"))
 	ActionSheet2.Initialize("actionsheet2","帐户", "Cancel", "", Array As String("登录","注销"))
+	ActionSheet3.Initialize("actionsheet3","帖子", "Cancel", "", Array As String("上一页","下一页"))
 	'NavControl.ShowPage(Page1)
 	'NavControl.NavigationBarVisible=False
 	clv1.Initialize(Me, "clv1",100%X)
@@ -272,7 +274,7 @@ End Sub
 Sub loadcontent(jsonresult As String)
     'clv1.Clear
     'currentposition=5
-	currentpage=1
+	'currentpage=1
 	NavControl.ShowPage(Page2)
     'ListView1.Clear
 	'clv1.AsView.Visible=False
@@ -298,8 +300,10 @@ Sub loadcontent(jsonresult As String)
 		content1=content1 & map2.Get("content")
 		End If
 	Next
-	content1=content1.Replace("js/xheditor-1.1.9/xheditor_emot/default/","http://bbs.jiangnan.edu.cn/wForum/js/xheditor-1.1.9/xheditor_emot/default/")
-	content1=content1.Replace("emot/jn/","http://bbs.jiangnan.edu.cn/wForum/emot/jn/")
+	content1=content1.Replace("js/xheditor-1.1.9/xheditor_emot/default/","File:///"&File.DirAssets&"/")
+	'"http://bbs.jiangnan.edu.cn/wForum/js/xheditor-1.1.9/xheditor_emot/default/"
+	content1=content1.Replace("emot/jn/","File:///"&File.DirAssets&"/")
+	'"http://bbs.jiangnan.edu.cn/wForum/emot/jn/")
 	'content1=content1.Replace("audioplayer/audio-player.js",File.DirAssets&"/audio-player.js")
 	'content1=content1.Replace("audioplayer/player.swf",File.DirAssets&"/player.swf")
 	If File.Exists(File.DirDocuments,".loadphoto") Then
@@ -310,6 +314,7 @@ Sub loadcontent(jsonresult As String)
 	'content1=content1.Replace("<a href=","<a href=" & Chr(34) &"javascript:void(0)" & Chr(34) &" onclick=getData(")
 	'content1=content1.Replace(">下载",")>下载")
 	Log(content1)
+	Log("File:///"&File.DirAssets&"/")
 	WebView1.LoadHtml(content1)
 End Sub
 
@@ -386,11 +391,7 @@ End Sub
 
 ' Page2 TopRightBar buttons event routine
 Private Sub Page2_BarButtonClick (Tag As String)
-	currentpageOfThread=currentpageOfThread+1
-    TURL=TURL&"&page="&currentpageOfThread
-	Dim getcontent As HttpJob
-    getcontent.Initialize("getcontent",Me)
-	getcontent.Download(TURL)
+    ActionSheet3.Show(Page1.RootPanel)
 End Sub
 
 ' ActionSheet Pages event routine
@@ -434,6 +435,24 @@ Private Sub actionsheet2_Click(Item As String)
 		    hd.ToastMessageShow("你未登录过",False)
 		End If
 	End Select
+End Sub
+
+' ActionSheet Pages event routine
+Private Sub actionsheet3_Click(Item As String)
+	Select Item
+	Case "上一页"
+	    If currentpageOfThread=1 Then
+		    hd.ToastMessageShow("已经是第一页了",False)
+		Else
+		    currentpageOfThread=currentpageOfThread-1
+		End If
+	Case "下一页"
+        currentpageOfThread=currentpageOfThread+1
+	End Select
+    TURL=TURL&"&page="&currentpageOfThread
+	Dim getcontent As HttpJob
+    getcontent.Initialize("getcontent",Me)
+	getcontent.Download(TURL)
 End Sub
 
 Sub Switch1_ValueChanged (Value As Boolean)

@@ -75,6 +75,7 @@ Sub Process_Globals
 	Private aboutme As Label
 	Private duration1 As Long
 	Dim MP As MediaPlayer
+	Private Switch2 As Switch
 End Sub
 
 Private Sub Application_Start (Nav As NavigationController)
@@ -126,6 +127,12 @@ Private Sub Application_Start (Nav As NavigationController)
 	If File.Exists(File.DirDocuments,".login") Then
 	    If File.ReadString(File.DirDocuments,".login")=0 Then
 		    loginLabel.Text="已登录"
+		End If
+	End If
+	GifWV.UserInteractionEnabled=False
+	If File.Exists(File.DirDocuments,".enablezoom") Then
+	    If File.ReadString(File.DirDocuments,".enablezoom")=True Then
+		    WebView1.ScaleToFit=True
 		End If
 	End If
 	'Log(File.DirDocuments)
@@ -245,6 +252,9 @@ Sub clv2_ItemClick (position As Int, Value As Object)
 		    smc.CloseMenu
 			If File.Exists(File.DirDocuments,".loadphoto") Then
 			    Switch1.Value=File.ReadString(File.DirDocuments,".loadphoto")
+			End If
+			If File.Exists(File.DirDocuments,".enablezoom") Then
+			    Switch2.Value=File.ReadString(File.DirDocuments,".enablezoom")
 			End If
 		    NavControl.ShowPage(SettingPage)
 	End Select
@@ -548,10 +558,11 @@ End Sub
 Private Sub actionsheet4_Click(Item As String)
     Select Item
         Case "保存"
-		    hd.ProgressDialogShow("下载中")
 		    Dim getimage As HttpJob
 			getimage.Initialize("getimage",Me)
 			getimage.Download(imageURL)
+			ActionSheet4.Dismiss
+		    hd.ProgressDialogShow("下载中")
     End Select
 End Sub
 
@@ -704,4 +715,9 @@ Sub aboutme_Click
 	If aboutme.Tag=5 Then
 	    hd.ToastMessageShow("你中奖了",False)
 	End If
+End Sub
+
+Sub Switch2_ValueChanged (Value As Boolean)
+	File.WriteString(File.DirDocuments,".enablezoom",Value)
+	WebView1.ScaleToFit=Value
 End Sub

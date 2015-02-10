@@ -1,5 +1,6 @@
 body{
 max-width: 95%;
+word-wrap: break-word;
 }
 
 img{

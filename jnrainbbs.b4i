@@ -5,12 +5,14 @@ Module1=HttpJob
 Module2=HttpUtils2Service
 Module3=CustomListView
 Build1=jnrain,org.xulihang.jnrain
-NumberOfFiles=5
+NumberOfFiles=7
 File1=leftpage.bil
 File2=login.bil
 File3=main.bil
-File4=setting.bil
-File5=thread.bil
+File4=newpost.bil
+File5=setting.bil
+File6=thread.bil
+File7=uploadpage.bil
 NumberOfLibraries=6
 Library1=icore
 Library2=ijson
@@ -37,6 +39,7 @@ Sub Process_Globals
 	Private Page2 As Page
 	Private SettingPage As Page
 	Private LoginPage As Page
+	Private PostPage As Page
 	Private WebView1 As WebView
 	Private currentposition=1 As Int  '目前位置：1未加载大区列表，2为大区列表，3为版面列表
 	Private currentpage=1 As Int  '目前帖子列表页面
@@ -44,6 +47,8 @@ Sub Process_Globals
 	Private parameter As String '查看版面thread列表的参数
 	Private TURL As String '查看thread内容的参数，方便换页设为全局变量
 	Private boardName(35) As String
+	Private threadID As String '帖子ID
+	Private isNewThread=True As Boolean 
 	Private hd As HUD
 	Private clv1 As CustomListView
 	Private clv2 As CustomListView
@@ -56,6 +61,14 @@ Sub Process_Globals
 	Private TextField1 As TextField
 	Private TextField2 As TextField
 	Private loginLabel As Label
+	Private InsertEm As Button
+	Private Picker1 As Picker
+	Private GifWV As WebView
+	Private ContentTV As TextView
+	Private TitleTF As TextField
+	Private Upload As Button
+	Private uploadWV As WebView
+	Private aboutme As Label
 End Sub
 
 Private Sub Application_Start (Nav As NavigationController)
@@ -79,13 +92,16 @@ Private Sub Application_Start (Nav As NavigationController)
 	LoginPage.RootPanel.Color = Colors.White
 	LoginPage.RootPanel.LoadLayout("login")
 	LoginPage.Title = "登录"
+	PostPage.Initialize("PostPage")
+	PostPage.RootPanel.Color = Colors.White
+	PostPage.RootPanel.LoadLayout("newpost")
 	Dim leftpage As Page
 	leftpage.Initialize("leftpage")
 	leftpage.RootPanel.Color = Colors.Red
 	leftpage.RootPanel.LoadLayout("leftpage")
-	ActionSheet1.Initialize("actionsheet1","查看", "Cancel", "", Array As String("十大热帖","版块列表"))
+	ActionSheet1.Initialize("actionsheet1","操作", "Cancel", "", Array As String("十大热帖","版块列表","发帖"))
 	ActionSheet2.Initialize("actionsheet2","帐户", "Cancel", "", Array As String("登录","注销"))
-	ActionSheet3.Initialize("actionsheet3","帖子", "Cancel", "", Array As String("上一页","下一页"))
+	ActionSheet3.Initialize("actionsheet3","帖子", "Cancel", "", Array As String("上一页","下一页","回帖"))
 	'NavControl.ShowPage(Page1)
 	'NavControl.NavigationBarVisible=False
 	clv1.Initialize(Me, "clv1",100%X)
@@ -142,6 +158,8 @@ Sub JobDone (job As HttpJob)
 			    loginDone(job.GetString)
 			Case "userlogout"
 			    logoutDone(job.GetString)
+			Case "newpost"
+			    postDone(job.GetString)
 		End Select
 	Else
 		Log("Error: " & job.ErrorMessage)
@@ -182,6 +200,7 @@ Sub clv1_ItemClick (position As Int, Value As Object)
 	    getThread.Download("http://bbs.jiangnan.edu.cn/rainstyle/board_json.php?name="&Value&"&page=1")
 		Log(Value)
 	Else If currentposition=4 Then
+	    threadID=Value
 	    If Value="next" Then
 		    NextPage
 		Else If Value="previous" Then
@@ -194,6 +213,8 @@ Sub clv1_ItemClick (position As Int, Value As Object)
 		    Log(Value)
 		End If
 	Else If currentposition=0 Then
+	    boardName(20)=boardName(position)
+	    threadID=Value '让由十大进入的帖子时也能回帖
 	    TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
 	    Dim getcontent As HttpJob
 		getcontent.Initialize("getcontent",Me)
@@ -394,6 +415,26 @@ Private Sub Page2_BarButtonClick (Tag As String)
     ActionSheet3.Show(Page1.RootPanel)
 End Sub
 
+Private Sub PostPage_BarButtonClick (Tag As String)
+    If isNewThread=False Then
+	    hd.ProgressDialogShow("回帖中")
+	    Dim param As String
+	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&"&board="&boardName(20)&"&signature=1&ID="&threadID&"&groupID="&threadID&"&reID="&threadID
+	    Log(param)
+	    Dim newPost As HttpJob
+	    newPost.Initialize("newpost",Me)
+	    newPost.PostString("http://bbs.jiangnan.edu.cn/rainstyle/apipost.php",param)
+	Else
+        hd.ProgressDialogShow("发帖中")
+	    Dim param As String
+	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&"&board="&boardName(20)&"&signature=1&ID=&groupID=&reID=0"
+	    Log(param)
+	    Dim newPost As HttpJob
+	    newPost.Initialize("newpost",Me)
+	    newPost.PostString("http://bbs.jiangnan.edu.cn/rainstyle/apipost.php",param)
+	End If
+End Sub
+
 ' ActionSheet Pages event routine
 Private Sub actionsheet1_Click(Item As String)
 	Select Item
@@ -403,6 +444,16 @@ Private Sub actionsheet1_Click(Item As String)
 	Case "版块列表"
 		currentpage=1
 	    LoadSection
+	Case "发帖"
+	    TitleTF.Text=""
+	    ContentTV.Text=""
+	    If currentposition=4 Then
+		    Picker1.SetItems(0,Array As String("01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18"))
+		    isNewThread=True
+			NavControl.ShowPage(PostPage)
+		Else
+		    hd.ToastMessageShow("请在相应版块位置操作",False)
+		End If
 	End Select
 End Sub
 
@@ -445,14 +496,25 @@ Private Sub actionsheet3_Click(Item As String)
 		    hd.ToastMessageShow("已经是第一页了",False)
 		Else
 		    currentpageOfThread=currentpageOfThread-1
+			TURL=TURL&"&page="&currentpageOfThread
+	        Dim getcontent As HttpJob
+            getcontent.Initialize("getcontent",Me)
+	        getcontent.Download(TURL)
 		End If
 	Case "下一页"
         currentpageOfThread=currentpageOfThread+1
+		TURL=TURL&"&page="&currentpageOfThread
+	    Dim getcontent As HttpJob
+        getcontent.Initialize("getcontent",Me)
+	    getcontent.Download(TURL)
+	Case "回帖"
+	    TitleTF.Text="Reply"
+	    ContentTV.Text=""
+	    Picker1.SetItems(0,Array As String("01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18"))
+	    isNewThread=False
+        NavControl.ShowPage(PostPage)
 	End Select
-    TURL=TURL&"&page="&currentpageOfThread
-	Dim getcontent As HttpJob
-    getcontent.Initialize("getcontent",Me)
-	getcontent.Download(TURL)
+    
 End Sub
 
 Sub Switch1_ValueChanged (Value As Boolean)
@@ -532,6 +594,68 @@ Sub logoutDone(getjson As String)
 	End If
 End Sub
 
+Sub postDone(getjson As String)
+    Log(getjson)
+    Dim JSON As JSONParser
+	JSON.Initialize(getjson)
+	Dim map1 As Map
+    map1 = JSON.Nextobject
+    Dim status As Int
+	status= map1.get("status")
+	Log(status)
+	If  status=0 Then
+	    NavControl.RemoveCurrentPage
+		hd.ToastMessageShow("发帖成功",True)
+    Else If status=1 Then
+	    hd.ToastMessageShow("游客不能发帖",True)
+	Else
+	    hd.ToastMessageShow("发帖失败",True)
+	End If
+End Sub
+
 Sub loginLabel_Click
+    smc.CloseMenu
 	ActionSheet2.Show(Page1.RootPanel)
+End Sub
+
+Sub Picker1_ItemSelected (Column As Int, Row As Int)
+    Log(Picker1.GetSelectedRow(0))
+	Log(Picker1.GetSelectedItem(0))
+	Dim gifpath As String
+	gifpath="File:///"&File.DirAssets&"/em"&Picker1.GetSelectedItem(0)&".gif"
+    GifWV.LoadHtml("<html><body><img src='"&gifpath&"'/></body></html>")
+End Sub
+
+Sub InsertEm_Click
+	ContentTV.Text=ContentTV.Text&"[em"&Picker1.GetSelectedItem(0)&"]"
+End Sub
+
+Sub Upload_Click
+    Dim uploadpage As Page
+	uploadpage.Initialize("uploadpage")
+	uploadpage.RootPanel.Color = Colors.Red
+	uploadpage.RootPanel.LoadLayout("uploadpage")
+	NavControl.ShowPage(uploadpage)
+	uploadWV.LoadUrl("http://bbs.jiangnan.edu.cn/attachments/upload.php")
+End Sub
+
+Sub uploadWV_PageFinished (Success As Boolean, Url As String)
+	Dim result As String
+	Dim no As NativeObject = uploadWV
+	result=no.RunMethod("stringByEvaluatingJavaScriptFromString:", Array("document.documentElement.innerHTML")).AsString
+	If result.Contains("pic") Then
+	    Dim ubound As Int
+		Dim lbound As Int
+		ubound=result.IndexOf("[pic")
+		lbound=result.IndexOf("</script>")-3
+		Log(ubound)
+		Log(lbound)
+		result=result.SubString2(ubound,lbound)
+		Log(result)
+	    ContentTV.Text=ContentTV.Text&result
+	End If
+End Sub
+Sub aboutme_Click
+	aboutme.Tag=aboutme.Tag+1
+	hd.ToastMessageShow(aboutme.Tag,False)
 End Sub

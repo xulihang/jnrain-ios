@@ -4,16 +4,17 @@ NumberOfModules=3
 Module1=HttpJob
 Module2=HttpUtils2Service
 Module3=CustomListView
-Build1=jnrain,org.xulihang.jnrain
-NumberOfFiles=8
+Build1=jnrain,com.xulihang.jnrainbbs
+NumberOfFiles=9
 File1=leftpage.bil
 File2=login.bil
 File3=main.bil
 File4=newpost.bil
 File5=setting.bil
-File6=thread.bil
-File7=uploadpage.bil
-File8=wuqu.mp3
+File6=showme.bil
+File7=thread.bil
+File8=uploadpage.bil
+File9=wuqu.mp3
 NumberOfLibraries=7
 Library1=icore
 Library2=ijson
@@ -76,6 +77,7 @@ Sub Process_Globals
 	Private duration1 As Long
 	Dim MP As MediaPlayer
 	Private Switch2 As Switch
+	Private Timer1 As Timer
 End Sub
 
 Private Sub Application_Start (Nav As NavigationController)
@@ -135,6 +137,7 @@ Private Sub Application_Start (Nav As NavigationController)
 		    WebView1.ScaleToFit=True
 		End If
 	End If
+	Timer1.Initialize("timerevent",5000)
 	'Log(File.DirDocuments)
 	'Log(File.DirLibrary)
 	'Log(File.DirTemp)
@@ -223,6 +226,7 @@ Sub clv1_ItemClick (position As Int, Value As Object)
 		    PreviousPage
 		Else
 	        TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
+			boardName(20)=boardName(position)'置顶帖也能回复
 	        Dim getcontent As HttpJob
 		    getcontent.Initialize("getcontent",Me)
 	        getcontent.Download(TURL)
@@ -435,10 +439,12 @@ Private Sub Page2_BarButtonClick (Tag As String)
 End Sub
 
 Private Sub PostPage_BarButtonClick (Tag As String)
+    Dim tail As String
+	tail=CRLF&"来自江南听雨iOS客户端"
     If isNewThread=False Then
 	    hd.ProgressDialogShow("回帖中")
 	    Dim param As String
-	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&"&board="&boardName(20)&"&signature=1&ID="&threadID&"&groupID="&threadID&"&reID="&threadID
+	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&tail&"&board="&boardName(20)&"&signature=1&ID="&threadID&"&groupID="&threadID&"&reID="&threadID
 	    Log(param)
 	    Dim newPost As HttpJob
 	    newPost.Initialize("newpost",Me)
@@ -446,7 +452,8 @@ Private Sub PostPage_BarButtonClick (Tag As String)
 	Else
         hd.ProgressDialogShow("发帖中")
 	    Dim param As String
-	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&"&board="&boardName(20)&"&signature=1&ID=&groupID=&reID=0"
+		'boardname(19)以免查看置顶帖回来时发帖失败
+	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&tail&"&board="&boardName(19)&"&signature=1&ID=&groupID=&reID=0"
 	    Log(param)
 	    Dim newPost As HttpJob
 	    newPost.Initialize("newpost",Me)
@@ -713,8 +720,20 @@ Sub aboutme_Click
 		End If
 	End If
 	If aboutme.Tag=5 Then
-	    hd.ToastMessageShow("你中奖了",False)
+	    MP.Initialize(File.DirAssets,"hello.mp3","MP")
+	    MP.Play
+	    Dim showmepage As Page
+		showmepage.Initialize("showmepage")
+		showmepage.RootPanel.LoadLayout("showme")
+        NavControl.ShowPage(showmepage)
+		Timer1.Enabled=True
+	    'hd.ToastMessageShow("你中奖了",False)
 	End If
+End Sub
+
+Private Sub Timerevent_Tick
+    Timer1.Enabled=False
+    NavControl.RemoveCurrentPage
 End Sub
 
 Sub Switch2_ValueChanged (Value As Boolean)

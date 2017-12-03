@@ -1,4 +1,4 @@
-﻿VisibleModules=1,2,3
+﻿VisibleModules=1,2,3,4,5
 ModuleClosedNodes0=
 ModuleBookmarks0=
 ModuleBreakpoints0=
@@ -11,5 +11,11 @@ ModuleBreakpoints2=
 ModuleClosedNodes3=
 ModuleBookmarks3=
 ModuleBreakpoints3=
+ModuleClosedNodes4=
+ModuleBookmarks4=
+ModuleBreakpoints4=
+ModuleClosedNodes5=
+ModuleBookmarks5=
+ModuleBreakpoints5=
 SelectedBuild=0
 UserTypesHint=CustomListView,HttpJob

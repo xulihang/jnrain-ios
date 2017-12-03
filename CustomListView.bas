@@ -145,6 +145,7 @@ Public Sub InsertAtTextItem(Index As Int, Text As String, Value As Object)
 	lbl.TextAlignment = lbl.ALIGNMENT_LEFT
 	pnl.AddView(lbl, 5dip, 2dip, sv.Width - 5dip, 20dip)
 	lbl.Text = Text
+	lbl.Tag = Text '我加的
 	lbl.Multiline = True
 	lbl.Font = DefaultTextFont
 	lbl.TextColor = DefaultTextColor

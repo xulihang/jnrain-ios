@@ -1,21 +1,25 @@
 ﻿Version=1.8
 IconFile=
-NumberOfModules=3
+NumberOfModules=5
 Module1=HttpJob
 Module2=HttpUtils2Service
 Module3=CustomListView
+Module4=uploadimagepage
+Module5=thread2
 Build1=jnrain,com.xulihang.jnrainbbs
-NumberOfFiles=9
-File1=leftpage.bil
-File2=login.bil
-File3=main.bil
-File4=newpost.bil
-File5=setting.bil
-File6=showme.bil
-File7=thread.bil
-File8=uploadpage.bil
-File9=wuqu.mp3
-NumberOfLibraries=7
+NumberOfFiles=11
+File1=1.bil
+File2=faq.bil
+File3=leftpage.bil
+File4=login.bil
+File5=main.bil
+File6=newpost.bil
+File7=setting.bil
+File8=showme.bil
+File9=thread.bil
+File10=thread2.bil
+File11=wuqu.mp3
+NumberOfLibraries=8
 Library1=icore
 Library2=ijson
 Library3=ihud
@@ -23,11 +27,12 @@ Library4=ihttp
 Library5=istringutils
 Library6=isidemenu
 Library7=iphone
+Library8=imedia
 @EndOfDesignText@
 'Code module
 #Region  Project Attributes 
 	#ApplicationLabel: 江南听雨BBS
-	#Version: 1.0.0 
+	#Version: 1.0.1 
 	'Orientation possible values: Portrait, LandscapeLeft, LandscapeRight and PortraitUpsideDown
 	#iPhoneOrientations: Portrait, LandscapeLeft, LandscapeRight
 	#iPadOrientations: Portrait, LandscapeLeft, LandscapeRight, PortraitUpsideDown
@@ -49,10 +54,12 @@ Sub Process_Globals
 	Private currentpageOfThread=1 As Int  '目前帖子页面
 	Private parameter As String '查看版面thread列表的参数
 	Private TURL As String '查看thread内容的参数，方便换页设为全局变量
-	Private boardName(35) As String
+	Private imageURL As String
+	Private boardname(35) As String
+	Private boardnameCN As String
 	Private threadID As String '帖子ID
 	Private isNewThread=True As Boolean 
-	Private imageURL As String
+	Private deleteurl As String
 	Private hd As HUD
 	Private clv1 As CustomListView
 	Private clv2 As CustomListView
@@ -60,6 +67,7 @@ Sub Process_Globals
 	Private ActionSheet2 As ActionSheet
 	Private ActionSheet3 As ActionSheet
 	Private ActionSheet4 As ActionSheet
+	Private ActionSheet5 As ActionSheet
 	Private smc As SideMenuController
 	Private Switch1 As Switch
 	Private Button1 As Button
@@ -69,15 +77,17 @@ Sub Process_Globals
 	Private InsertEm As Button
 	Private Picker1 As Picker
 	Private GifWV As WebView
-	Private ContentTV As TextView
+	Public ContentTV As TextView
 	Private TitleTF As TextField
 	Private Upload As Button
-	Private uploadWV As WebView
 	Private aboutme As Label
 	Private duration1 As Long
 	Dim MP As MediaPlayer
 	Private Switch2 As Switch
 	Private Timer1 As Timer
+	Private ScrollView1 As ScrollView
+	Private Panel3 As Panel
+	Private ImageQualityLabel As Label
 End Sub
 
 Private Sub Application_Start (Nav As NavigationController)
@@ -95,8 +105,9 @@ Private Sub Application_Start (Nav As NavigationController)
 	Page2.Title = "帖子内容"
 	SettingPage.Initialize("SettingPage")
 	SettingPage.RootPanel.Color = Colors.White
-	SettingPage.RootPanel.LoadLayout("setting")
+	'SettingPage.RootPanel.LoadLayout("setting")
 	SettingPage.Title = "设置"
+	SettingPage.TopRightButtons=Array(smc.CreateBarButton("FAQ"))
 	LoginPage.Initialize("LoginPage")
 	LoginPage.RootPanel.Color = Colors.White
 	LoginPage.RootPanel.LoadLayout("login")
@@ -108,10 +119,11 @@ Private Sub Application_Start (Nav As NavigationController)
 	leftpage.Initialize("leftpage")
 	leftpage.RootPanel.Color = Colors.Red
 	leftpage.RootPanel.LoadLayout("leftpage")
-	ActionSheet1.Initialize("actionsheet1","操作", "Cancel", "", Array As String("十大热帖","版块列表","发帖"))
-	ActionSheet2.Initialize("actionsheet2","帐户", "Cancel", "", Array As String("登录","注销"))
+	ActionSheet1.Initialize("actionsheet1","操作", "Cancel", "", Array As String("十大热帖","版块列表","收藏版块","发帖"))
+	ActionSheet2.Initialize("actionsheet2","帐户", "Cancel", "", Array As String("登录","注销","清除登录记录"))
 	ActionSheet3.Initialize("actionsheet3","帖子", "Cancel", "", Array As String("上一页","下一页","回帖"))
 	ActionSheet4.Initialize("actionsheet4","保存图片", "Cancel", "", Array As String("保存"))
+	ActionSheet5.Initialize("actionsheet5","图片质量", "Cancel", "", Array As String("原图","中","差"))
 	'NavControl.ShowPage(Page1)
 	'NavControl.NavigationBarVisible=False
 	clv1.Initialize(Me, "clv1",100%X)
@@ -138,13 +150,24 @@ Private Sub Application_Start (Nav As NavigationController)
 		End If
 	End If
 	Timer1.Initialize("timerevent",5000)
+	ScrollView1.Initialize("scrollview1",100%x,100%y+200dip)
+	ScrollView1.Panel.LoadLayout("setting")
+	SettingPage.RootPanel.AddView(ScrollView1,0,0,100%x,100%y)
+
+	'Dim no As NativeObject = WebView2
+    'no.GetField("scrollView").SetField("showsHorizontalScrollIndicator", False)
+    'no.GetField("scrollView").SetField("showsVerticalScrollIndicator", False)
+	'no.GetField("scrollView").SetField("scrollEnabled", False)
 	'Log(File.DirDocuments)
 	'Log(File.DirLibrary)
 	'Log(File.DirTemp)
 End Sub
 
 Private Sub Page1_Resize(Width As Int, Height As Int)
-	
+	ScrollView1.Height=100%y
+	ScrollView1.Width=100%x
+	clv1.AsView.Height=100%y
+	clv1.AsView.Width=100%x
 End Sub
 
 Private Sub Application_Background
@@ -154,7 +177,8 @@ End Sub
 Sub loadclv2
     clv2.AddTextItem("十大热帖",0)
 	clv2.AddTextItem("版块列表",1)
-	clv2.AddTextItem("设置",2)
+	clv2.AddTextItem("收藏",2)
+	clv2.AddTextItem("设置",3)
 End Sub
 
 Sub JobDone (job As HttpJob)
@@ -171,14 +195,22 @@ Sub JobDone (job As HttpJob)
 			    loadThread(job.GetString,True)
 			Case "getcontent"
 			    loadcontent(job.GetString)
+			Case "getimage"
+			    getimageDone(job.GetBitmap)
 			Case "userlogin"
 			    loginDone(job.GetString)
 			Case "userlogout"
 			    logoutDone(job.GetString)
 			Case "newpost"
 			    postDone(job.GetString)
-			Case "getimage"
-			    getimageDone(job.GetBitmap)
+			Case "getmyip"
+			    getmyipDone(job.GetString)
+			Case "uploadseentimes"
+			    Log(job.GetString)
+			Case "clearRecord"
+			    hd.ToastMessageShow(job.GetString,False)
+			Case "deletepost"
+			    hd.ToastMessageShow("已删除",False)
 		End Select
 	Else
 		Log("Error: " & job.ErrorMessage)
@@ -203,20 +235,33 @@ Sub LoadSection
 	clv1.AddTextItem("休闲娱乐",7)
 	clv1.AddTextItem("社团群体",8)
 	clv1.AddTextItem("校务邮箱",9)
-	clv1.AddTextItem("服务专区",10)
+	clv1.AddTextItem("服务专区","A")
 End Sub
 
 Sub clv1_ItemClick (position As Int, Value As Object)
     If currentposition=2 Then
-        Dim getsec As HttpJob
-	    getsec.Initialize("getsec",Me)
-	    getsec.Download("http://bbs.jiangnan.edu.cn/rainstyle/boards_json.php?sec="&Value)
+	    If Value="A" OR Value=8 Then
+		    subboardload(Value)
+		Else If Value=0 OR Value=1 OR Value=2 OR Value=3 OR Value=4 OR Value=5 OR Value=6 OR Value=7 OR Value=9 Then
+            '非二级版块
+			Dim getsec As HttpJob
+	        getsec.Initialize("getsec",Me)
+	        getsec.Download("http://bbs.jiangnan.edu.cn/rainstyle/boards_json.php?sec="&Value)
+		Else
+		    LoadboardManually(Value)
+		End If
 		Log(Value)
 	Else If currentposition=3 Then
 	    parameter=Value
-	    Dim getThread As HttpJob
-		getThread.Initialize("getThread",Me)
-	    getThread.Download("http://bbs.jiangnan.edu.cn/rainstyle/board_json.php?name="&Value&"&page=1")
+		boardnameCN=clv1.GetPanel(position).GetView(0).Tag
+		If Value="graduatestudent" OR Value="Sportsgroup" Then
+		    LoadboardManually(Value)
+		Else
+		    '非二级版块
+	        Dim getThread As HttpJob
+		    getThread.Initialize("getThread",Me)
+	        getThread.Download("http://bbs.jiangnan.edu.cn/rainstyle/board_json.php?name="&Value&"&page=1")
+		End If
 		Log(Value)
 	Else If currentposition=4 Then
 	    threadID=Value
@@ -225,17 +270,19 @@ Sub clv1_ItemClick (position As Int, Value As Object)
 		Else If Value="previous" Then
 		    PreviousPage
 		Else
-	        TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
-			boardName(20)=boardName(position)'置顶帖也能回复
+	        TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardname(position)&"&ID="&Value
+			boardname(20)=boardname(position)'置顶帖也能回复
+			currentpageOfThread=1
 	        Dim getcontent As HttpJob
 		    getcontent.Initialize("getcontent",Me)
 	        getcontent.Download(TURL)
 		    Log(Value)
 		End If
 	Else If currentposition=0 Then
-	    boardName(20)=boardName(position)
+	    boardname(20)=boardname(position)
 	    threadID=Value '让由十大进入的帖子时也能回帖
-	    TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardName(position)&"&ID="&Value
+	    TURL="http://bbs.jiangnan.edu.cn/rainstyle/thread_json.php?boardName="&boardname(position)&"&ID="&Value
+		currentpageOfThread=1
 	    Dim getcontent As HttpJob
 		getcontent.Initialize("getcontent",Me)
 	    getcontent.Download(TURL)
@@ -254,15 +301,79 @@ Sub clv2_ItemClick (position As Int, Value As Object)
 		    LoadSection
 		Case 2
 		    smc.CloseMenu
+		    clv1.Clear
+			currentposition=3
+			If File.Exists(File.DirDocuments,".fav") Then
+		        Dim favlist As List
+			    favlist=File.ReadList(File.DirDocuments,".fav")
+				For i=0 To favlist.Size-1
+				    If i=0 Then
+				        clv1.AddTextItem(favlist.Get(i+1),favlist.Get(i))
+					Else If i Mod 2 =0 Then
+					    clv1.AddTextItem(favlist.Get(i+1),favlist.Get(i))
+					End If
+				Next
+			Else
+			    hd.ToastMessageShow("无",False)
+			End If
+		Case 3
+		    smc.CloseMenu
 			If File.Exists(File.DirDocuments,".loadphoto") Then
 			    Switch1.Value=File.ReadString(File.DirDocuments,".loadphoto")
 			End If
 			If File.Exists(File.DirDocuments,".enablezoom") Then
 			    Switch2.Value=File.ReadString(File.DirDocuments,".enablezoom")
 			End If
+			If File.Exists(File.DirDocuments,".imagequality") Then
+			    ImageQualityLabel.Text=File.ReadString(File.DirDocuments,".imagequality")
+			End If
 		    NavControl.ShowPage(SettingPage)
 	End Select
 End Sub
+
+Sub subboardload(Value As Object)
+    clv1.Clear
+	If Value="A" Then
+	    clv1.AddTextItem("就业-兼职","Job")
+		clv1.AddTextItem("二手市场","SecondHand")
+		clv1.AddTextItem("长期代理","Agent")
+    Else If Value=8 Then
+	    clv1.AddTextItem("媒体类社团","News.group")
+	End If
+End Sub
+
+Sub LoadboardManually(Value As String)
+    currentposition=3
+    clv1.Clear
+    Select Value
+	    Case "Job"
+	        clv1.AddTextItem("官方勤工助学","A.Work")
+		    clv1.AddTextItem("家教信息","HomeTutor")
+		    clv1.AddTextItem("就业信息","Jobs")
+		    clv1.AddTextItem("其他兼职","PartTime")
+		    clv1.AddTextItem("官方勤工助学","A.Work")
+		Case "SecondHand"
+		    clv1.AddTextItem("美容服饰","Beautylifestyle")
+		    clv1.AddTextItem("图书市场","BookMarket")
+		    clv1.AddTextItem("电脑数码","DigiPCTrade")
+			clv1.AddTextItem("租房信息","RentingHouse")
+		    clv1.AddTextItem("交通工具","Transport")
+		    clv1.AddTextItem("日用百货","Z.riyongbaihuo")
+		Case "Agent"
+		    clv1.AddTextItem("电脑数码代理","Digitalcomputers")
+		    clv1.AddTextItem("综合其他代理","Z.OtherTrades")
+		Case "News.group"
+		    clv1.AddTextItem("听听广播","broadcast")
+		Case "graduatestudent"
+		    clv1.AddTextItem("考研资料交流","GCTbooktrade")
+		    clv1.AddTextItem("考研一族","postgraduate")
+		Case "Sportsgroup"
+		    clv1.AddTextItem("足球世界","football")
+			clv1.AddTextItem("NBA","NBA")
+		    clv1.AddTextItem("体育运动","Sports")
+	End Select
+End Sub
+
 Sub loadSec(jsonresult As String)
     currentposition=3
     clv1.Clear
@@ -290,7 +401,7 @@ Sub loadThread(jsonresult As String, showPreviousPage As Boolean)
     currentposition=4
 	currentpageOfThread=1
     clv1.Clear
-	If showPreviousPage=True Then
+	If showPreviousPage=True AND currentpage<>1 Then
 	    clv1.AddTextItem("上一页","previous")
 	End If
     Dim JSON As JSONParser
@@ -307,7 +418,7 @@ Sub loadThread(jsonresult As String, showPreviousPage As Boolean)
 		name = map2.Get("title")
 		Dim id As String
 		id = map2.Get("id")
-		boardName(i) = map2.Get("board")
+		boardname(i) = map2.Get("board")
 		clv1.AddTextItem(name,id)
 		If i=list1.Size-1 Then
 		    clv1.AddTextItem("下一页","next")
@@ -316,47 +427,65 @@ Sub loadThread(jsonresult As String, showPreviousPage As Boolean)
 End Sub
 
 Sub loadcontent(jsonresult As String)
-    'clv1.Clear
-    'currentposition=5
-	'currentpage=1
 	NavControl.ShowPage(Page2)
-    'ListView1.Clear
-	'clv1.AsView.Visible=False
-    'WebView1.Visible=True
     Dim JSON As JSONParser
     JSON.Initialize(jsonresult)
     Dim map1 As Map
     map1 = JSON.Nextobject
     Log(map1.Size)
-    'm = map1.GetKeyAt(12)
 	Dim posts As List
 	Dim map2 As Map
 	Dim content1 As String 
 	content1="<link rel=" & Chr(34) &"stylesheet" & Chr(34) &" type=" & Chr(34) & "text/css" & Chr(34) &" href=" & Chr(34) &"File:///"&File.DirAssets&"/mystyle.css" & Chr(34) &" />"
-	'"<img src=File:///"&File.DirAssets&"/icon-60.png>"
-	'"<script src="&File.DirAssets&"'/jsinterface.js'  language='javascript'></script>"
 	posts= map1.get("posts") '根据Key的名称
 	For i =0 To posts.Size-1
-        map2=posts.Get(i)
+        map2=posts.get(i)
 		If i>0 Then
-		content1=content1 & "<br />" &"-------------------"& "<br />" & map2.Get("content")
+		    content1=content1 & "<br />" &"-------------------"& "<br />" & map2.get("content")
 		Else
-		content1=content1 & map2.Get("content")
+		    content1=content1 & map2.get("content")
+		    If currentpageOfThread=1 Then
+		        TitleTF.Text="Re: "&map2.get("title")
+		    End If
 		End If
+		Dim getface As String
+		getface="<br /><a href=" & Chr(34) &"https://jnrainbbs-bookjnrain.rhcloud.com/getface/"&map2.get("author") & Chr(34) &" style='text-decoration:none;'>查看头像 </a>"
+		content1=content1 & getface
+		'Dim reply As String
+		'reply="<a href=" & Chr(34) & "https://reply[" & map2.get("author") & "," & map2.Get("id") & "]" & Chr(34) &">回复 </a>"
+		'content1=content1 & reply
+		Dim replybbs As String 
+		replybbs="<a href=" & Chr(34) & "http://bbs.jiangnan.edu.cn/bbspst.php?board="&map2.Get("board")&"&reid="&map2.Get("id") & Chr(34) &" style='text-decoration:none;'>回复 </a>"
+		content1=content1 & replybbs
+		Dim edit As String 
+		edit="<a href=" & Chr(34) & "http://bbs.jiangnan.edu.cn/bbsedit.php?board="&map2.Get("board")&"&id="&map2.Get("id") & "&ftype=0" & Chr(34) &" style='text-decoration:none;'>编辑 </a>"
+		content1=content1 & edit
+		Dim delete As String     
+		delete="<a href=" & Chr(34) & "http://bbs.jiangnan.edu.cn/bbsdel.php"& Chr(34) &" style='text-decoration:none;'>删除 </a>"
+		deleteurl="http://bbs.jiangnan.edu.cn/bbsdel.php?board="&map2.Get("board")&"&id="&map2.Get("id")
+		content1=content1 & delete
 	Next
 	content1=content1.Replace("js/xheditor-1.1.9/xheditor_emot/default/","File:///"&File.DirAssets&"/")
-	'"http://bbs.jiangnan.edu.cn/wForum/js/xheditor-1.1.9/xheditor_emot/default/"
 	content1=content1.Replace("emot/jn/","File:///"&File.DirAssets&"/")
-	'"http://bbs.jiangnan.edu.cn/wForum/emot/jn/")
-	'content1=content1.Replace("audioplayer/audio-player.js",File.DirAssets&"/audio-player.js")
-	'content1=content1.Replace("audioplayer/player.swf",File.DirAssets&"/player.swf")
+	content1=content1.Replace("downip.php","http://bbs.jiangnan.edu.cn/rainstyle/bbscon.php")
+
 	If File.Exists(File.DirDocuments,".loadphoto") Then
 	    If File.ReadString(File.DirDocuments,".loadphoto")=True Then
-	        content1=content1.Replace("/attachments/","http://bbs.jiangnan.edu.cn/attachments/")
+		    If File.Exists(File.DirDocuments,".imagequality") Then
+			    Dim iq As String
+				iq=File.ReadString(File.DirDocuments,".imagequality")
+			    If iq="原图" Then
+				    content1=content1.Replace("/attachments/","http://bbs.jiangnan.edu.cn/attachments/")
+				Else If iq="中" Then
+				    content1=content1.Replace("/attachments/","https://jnrainbbs-bookjnrain.rhcloud.com/attachments-mid/")
+				Else If iq="差" Then
+				    content1=content1.Replace("/attachments/","https://jnrainbbs-bookjnrain.rhcloud.com/attachments-small/")
+				End If
+			Else
+	            content1=content1.Replace("/attachments/","http://bbs.jiangnan.edu.cn/attachments/")
+			End If
 		End If
 	End If
-	'content1=content1.Replace("<a href=","<a href=" & Chr(34) &"javascript:void(0)" & Chr(34) &" onclick=getData(")
-	'content1=content1.Replace(">下载",")>下载")
 	Log(content1)
 	Log("File:///"&File.DirAssets&"/")
 	WebView1.LoadHtml(content1)
@@ -388,7 +517,7 @@ Sub loadTopten(jsonresult As String)
 		Dim id As String
 		id = map2.Get("id")
 
-		boardName(i) = map2.Get("board")
+		boardname(i) = map2.Get("board")
 		clv1.AddTextItem(name,id)
 	Next
 End Sub
@@ -438,13 +567,21 @@ Private Sub Page2_BarButtonClick (Tag As String)
     ActionSheet3.Show(Page1.RootPanel)
 End Sub
 
+Private Sub SettingPage_BarButtonClick (Tag As String)
+    Dim faqpage As Page
+	faqpage.Initialize("faqpage")
+	faqpage.RootPanel.Color = Colors.White
+	faqpage.RootPanel.LoadLayout("faq")
+	NavControl.ShowPage(faqpage)
+End Sub
+
 Private Sub PostPage_BarButtonClick (Tag As String)
     Dim tail As String
 	tail=CRLF&"来自江南听雨iOS客户端"
     If isNewThread=False Then
 	    hd.ProgressDialogShow("回帖中")
 	    Dim param As String
-	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&tail&"&board="&boardName(20)&"&signature=1&ID="&threadID&"&groupID="&threadID&"&reID="&threadID
+	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&tail&"&board="&boardname(20)&"&signature=-1&ID="&threadID&"&groupID="&threadID&"&reID="&threadID
 	    Log(param)
 	    Dim newPost As HttpJob
 	    newPost.Initialize("newpost",Me)
@@ -453,7 +590,7 @@ Private Sub PostPage_BarButtonClick (Tag As String)
         hd.ProgressDialogShow("发帖中")
 	    Dim param As String
 		'boardname(19)以免查看置顶帖回来时发帖失败
-	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&tail&"&board="&boardName(19)&"&signature=1&ID=&groupID=&reID=0"
+	    param="subject="&TitleTF.Text&"&Content="&ContentTV.Text&tail&"&board="&boardname(19)&"&signature=-1&ID=&groupID=&reID=0"
 	    Log(param)
 	    Dim newPost As HttpJob
 	    newPost.Initialize("newpost",Me)
@@ -480,6 +617,19 @@ Private Sub actionsheet1_Click(Item As String)
 		Else
 		    hd.ToastMessageShow("请在相应版块位置操作",False)
 		End If
+	Case "收藏版块"
+		If currentposition=4 Then
+		    Dim list1 As List
+			list1.Initialize
+		    If File.Exists(File.DirDocuments,".fav") Then
+			    list1=File.ReadList(File.DirDocuments,".fav")
+			End If
+			list1.Add(boardname(20))
+			list1.Add(boardnameCN)
+		    File.WriteList(File.DirDocuments,".fav",list1)
+		Else
+		    hd.ToastMessageShow("请在相应版块位置操作",False)
+		End If
 	End Select
 End Sub
 
@@ -493,10 +643,12 @@ Private Sub actionsheet2_Click(Item As String)
 			Else
 			    smc.CloseMenu
 	            NavControl.ShowPage(LoginPage)
+				Button1.Text="登录"
 			End If
 		Else 
 		    smc.CloseMenu
 		    NavControl.ShowPage(LoginPage)
+			Button1.Text="登录"
 		End If
 	Case "注销"
 	    If File.Exists(File.DirDocuments,".login") Then
@@ -511,6 +663,9 @@ Private Sub actionsheet2_Click(Item As String)
 		Else
 		    hd.ToastMessageShow("你未登录过",False)
 		End If
+	Case "清除登录记录"
+		NavControl.ShowPage(LoginPage)
+		Button1.Text="清除"
 	End Select
 End Sub
 
@@ -534,7 +689,6 @@ Private Sub actionsheet3_Click(Item As String)
         getcontent.Initialize("getcontent",Me)
 	    getcontent.Download(TURL)
 	Case "回帖"
-	    TitleTF.Text="Reply"
 	    ContentTV.Text=""
 	    Picker1.SetItems(0,Array As String("01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18"))
 	    isNewThread=False
@@ -543,32 +697,12 @@ Private Sub actionsheet3_Click(Item As String)
     
 End Sub
 
-Sub Switch1_ValueChanged (Value As Boolean)
-	File.WriteString(File.DirDocuments,".loadphoto",Value)
-	Log(File.ReadString(File.DirDocuments,".loadphoto"))
-End Sub
-
-Sub WebView1_OverrideUrl (URL As String) As Boolean
-    If URL.Contains("mp3")=True Then
-	    hd.ToastMessageShow("将用系统播放器播放",False)
-	Else If URL.Contains("jpg") OR URL.Contains("png") OR URL.Contains("gif") OR URL.Contains("bmp") Then
-	    imageURL=URL
-		ActionSheet4.Show(Page2.RootPanel)
-	    'Msgbox2("saveImage","保存图片","保存到相册查看吗？",Array("好的","不用")) 莫名会出现两次，放弃
-		WebView1.LoadHtml("请选择操作")
-	Else
-        WebView1.LoadHtml("目前不支持点击")
-	    hd.ToastMessageShow("目前不支持点击",False)
-	End If
-End Sub
-
 Private Sub actionsheet4_Click(Item As String)
     Select Item
         Case "保存"
 		    Dim getimage As HttpJob
 			getimage.Initialize("getimage",Me)
 			getimage.Download(imageURL)
-			ActionSheet4.Dismiss
 		    hd.ProgressDialogShow("下载中")
     End Select
 End Sub
@@ -580,18 +714,71 @@ Sub getimageDone(image As Bitmap)
 	plib.AddImageToAlbum(image)
 End Sub
 
+Sub Switch1_ValueChanged (Value As Boolean)
+	File.WriteString(File.DirDocuments,".loadphoto",Value)
+	Log(File.ReadString(File.DirDocuments,".loadphoto"))
+End Sub
+
+Sub WebView1_OverrideUrl (URL As String) As Boolean
+    If URL.Contains("mp3")=True Then
+	    hd.ToastMessageShow("将用系统播放器播放",False)
+		thread2.Show(URL)
+		Return True
+	Else If URL.Contains("bbscon.php") OR URL.Contains("jpg") OR URL.Contains("png") OR URL.Contains("gif") OR URL.Contains("bmp") OR URL.Contains("JPG") OR URL.Contains("PNG") OR URL.Contains("GIF") OR URL.Contains("BMP") OR URL.Contains("jpeg") OR URL.Contains("JPEG") Then
+	    imageURL=URL
+		ActionSheet4.Show(Page2.RootPanel)
+	    'Msgbox2("saveImage","保存图片","保存到相册查看吗？",Array("好的","不用")) 莫名会出现两次，放弃
+		Return True
+	Else If URL.Contains("getface") Then
+	    thread2.Show(URL)
+		Return True
+	Else If URL.Contains("bbspst") OR URL.Contains("bbsedit") OR URL.Contains("bbssnd") Then
+	    Log(URL)
+		thread2.Show(URL)
+		Return True
+	Else If URL.Contains("bbsdel") Then
+	    Msgbox2("Msg","删除","确定删除吗",Array("确定","算了"))
+		Return True
+	Else If URL.Contains("https://reply") Then
+		Return True
+	Else
+	    Log(URL)
+	    hd.ToastMessageShow("目前不支持点击",False)
+		Return True 'True 则不处理链接
+	End If
+End Sub
+
+Sub msg_click(buttontext As String)
+    If buttontext="确定" Then
+	    hd.ProgressDialogShow("删除中")
+	    Dim deletepost As HttpJob
+		deletepost.Initialize("deletepost",Me)
+		deletepost.Download(deleteurl)
+	Else 
+	    deleteurl=""
+	End If
+End Sub
+
+
 '登录按钮
 Sub Button1_Click
-    If TextField1.Text="guest" Then
-	    Msgbox("匿名用户不能登录","错误")
-	Else
-        hd.ProgressDialogShow("登录中")
-	    Dim param As String
-	    param="uid="&TextField1.Text&"&psw="&TextField2.Text
-	    Log(param)
-	    Dim userlogin As HttpJob
-	    userlogin.Initialize("userlogin",Me)
-	    userlogin.PostString("http://bbs.jiangnan.edu.cn/rainstyle/apilogin.php",param)
+    If Button1.Text="清除" Then
+	    hd.ProgressDialogShow("清除中")
+        Dim clearRecord As HttpJob
+		clearRecord.Initialize("clearRecord",Me)
+		clearRecord.Download("https://jnrainbbs-bookjnrain.rhcloud.com/clear/"&TextField1.Text&"/"&TextField2.Text)
+    Else
+	    If TextField1.Text="guest" Then
+		    Msgbox("匿名用户不能登录","错误")
+		Else
+	        hd.ProgressDialogShow("登录中")
+		    Dim param As String
+		    param="uid="&TextField1.Text&"&psw="&TextField2.Text
+		    Log(param)
+		    Dim userlogin As HttpJob
+		    userlogin.Initialize("userlogin",Me)
+		    userlogin.PostString("http://bbs.jiangnan.edu.cn/rainstyle/apilogin.php",param)
+		End If
 	End If
 End Sub
 
@@ -681,32 +868,12 @@ Sub InsertEm_Click
 End Sub
 
 Sub Upload_Click
-    Dim uploadpage As Page
-	uploadpage.Initialize("uploadpage")
-	uploadpage.RootPanel.Color = Colors.Red
-	uploadpage.RootPanel.LoadLayout("uploadpage")
-	NavControl.ShowPage(uploadpage)
-	uploadWV.LoadUrl("http://bbs.jiangnan.edu.cn/attachments/upload.php")
+	uploadimagepage.Show
 End Sub
 
-Sub uploadWV_PageFinished (Success As Boolean, Url As String)
-	Dim result As String
-	Dim no As NativeObject = uploadWV
-	result=no.RunMethod("stringByEvaluatingJavaScriptFromString:", Array("document.documentElement.innerHTML")).AsString
-	If result.Contains("pic") Then
-	    Dim ubound As Int
-		Dim lbound As Int
-		ubound=result.IndexOf("[pic")
-		lbound=result.IndexOf("</script>")-3
-		Log(ubound)
-		Log(lbound)
-		result=result.SubString2(ubound,lbound)
-		Log(result)
-	    ContentTV.Text=ContentTV.Text&result
-	End If
-End Sub
 Sub aboutme_Click
 	aboutme.Tag=aboutme.Tag+1
+	
 	hd.ToastMessageShow(aboutme.Tag,False)
 	If aboutme.Tag=2 Then
 	    MP.Initialize(File.DirAssets,"wuqu.mp3","MP")
@@ -720,16 +887,52 @@ Sub aboutme_Click
 		End If
 	End If
 	If aboutme.Tag=5 Then
-	    MP.Initialize(File.DirAssets,"hello.mp3","MP")
+		MP.Initialize(File.DirAssets,"hello.mp3","MP")
 	    MP.Play
 	    Dim showmepage As Page
 		showmepage.Initialize("showmepage")
 		showmepage.RootPanel.LoadLayout("showme")
         NavControl.ShowPage(showmepage)
 		Timer1.Enabled=True
+		Dim getmyip As HttpJob
+		getmyip.Initialize("getmyip",Me)
+		getmyip.Download("http://ipof.in/json")
 	    'hd.ToastMessageShow("你中奖了",False)
 	End If
 End Sub
+
+Sub getmyipDone(result As String)
+    'result=result.SubString2(result.LastIndexOf("ip:")+2,result.IndexOf("time"))
+	Dim JSON As JSONParser
+    JSON.Initialize(result)
+    Dim map1 As Map
+    map1 = JSON.Nextobject
+	result=map1.Get("ip")
+	Log(result)
+	doupload(result)
+End Sub
+
+Sub doupload(result As String)
+    
+	Dim NativeMe As NativeObject = Me
+	Dim iphonename As String
+	iphonename=NativeMe.RunMethod("getuserPhoneName",Null).AsString.Replace("'","")
+	Dim modelname As String
+    modelname=NativeMe.RunMethod("correspondVersion",Null).AsString
+
+	'Dim currentTime As String
+	'currentTime=DateTime.GetYear(DateTime.Now)&"/"&DateTime.GetMonth(DateTime.Now)&"/"&DateTime.GetDayOfMonth(DateTime.Now)&" "&DateTime.GetHour(DateTime.Now)&":"&DateTime.GetMinute(DateTime.Now)&":"&DateTime.GetSecond(DateTime.Now)
+	Dim param As String
+	'theurl="http://31.220.48.84:64381/addtimes/"&result&"/"&currentTime&"/"&iphonename.Replace("/","-")&"/"&modelname
+    'WebView1.LoadUrl(theurl)
+	param="ipaddress="&result&"&time="&DateTime.Now&"&iphonename="&iphonename&"&modelname="&modelname
+	'param="ipaddress=111&time=111sda&iphonename=sdad&modelname=sadas"
+	Log(param)
+	Dim Uploadseentimes As HttpJob
+	Uploadseentimes.Initialize("uploadseentimes",Me)
+	Uploadseentimes.PostString("https://jnrainbbs-bookjnrain.rhcloud.com/me/handletimes",param)
+End Sub
+
 
 Private Sub Timerevent_Tick
     Timer1.Enabled=False
@@ -740,3 +943,95 @@ Sub Switch2_ValueChanged (Value As Boolean)
 	File.WriteString(File.DirDocuments,".enablezoom",Value)
 	WebView1.ScaleToFit=Value
 End Sub
+Sub Panel3_Click
+	ActionSheet5.Show(SettingPage.RootPanel)
+End Sub
+Sub Panel3_Touch(Action As Int, X As Float, Y As Float)
+	Log(Action)
+	Select Action
+	    Case 0
+		    Panel3.Color=Colors.LightGray
+		Case 1
+		    Panel3.Color=Colors.White
+	End Select
+End Sub
+
+Private Sub actionsheet5_Click(Item As String)
+    Dim quality As String
+    Select Item
+        Case "原图"
+		    quality="原图"
+		Case "中"
+		    quality="中"
+		Case "差"
+		    quality="差"
+    End Select
+	ImageQualityLabel.Text=quality
+	File.writestring(File.DirDocuments,".imagequality",quality)
+End Sub
+
+#If objc
+
+#import "sys/utsname.h"
+
+- (NSString*) getuserPhoneName{
+    NSString* userPhoneName = [[UIDevice currentDevice] name];    
+	NSLog(@"手机别名: %@", userPhoneName);  
+	return userPhoneName;
+}
+
+- (NSString*) getdeviceName{
+	NSString* deviceName = [[UIDevice currentDevice] systemName];    
+	NSLog(@"设备名称: %@",deviceName );   
+    return deviceName;
+}
+
+- (NSString*) getphoneModel{
+
+	NSString* phoneModel = [[UIDevice currentDevice] model];    
+	NSLog(@"手机型号: %@",phoneModel ); 
+	return phoneModel;
+}
+
+- (NSString *)getDeviceVersionInfo
+{
+    struct utsname systemInfo;
+    uname(&systemInfo);
+    NSString *platform = [NSString stringWithFormat:@"%s", systemInfo.machine];
+    
+    return platform;
+}
+
+-(NSString *)correspondVersion
+{
+    NSString *correspondVersion = [self getDeviceVersionInfo];
+    
+    if ([correspondVersion isEqualToString:@"i386"])        return@"Simulator";
+    if ([correspondVersion isEqualToString:@"x86_64"])       return @"Simulator";
+    
+    if ([correspondVersion isEqualToString:@"iPhone1,1"])   return@"iPhone 1";
+    if ([correspondVersion isEqualToString:@"iPhone1,2"])   return@"iPhone 3";
+    if ([correspondVersion isEqualToString:@"iPhone2,1"])   return@"iPhone 3S";
+    if ([correspondVersion isEqualToString:@"iPhone3,1"] || [correspondVersion isEqualToString:@"iPhone3,2"])   return@"iPhone 4";
+    if ([correspondVersion isEqualToString:@"iPhone4,1"])   return@"iPhone 4S";
+    if ([correspondVersion isEqualToString:@"iPhone5,1"] || [correspondVersion isEqualToString:@"iPhone5,2"])   return @"iPhone 5";
+    if ([correspondVersion isEqualToString:@"iPhone5,3"] || [correspondVersion isEqualToString:@"iPhone5,4"])   return @"iPhone 5C";
+    if ([correspondVersion isEqualToString:@"iPhone6,1"] || [correspondVersion isEqualToString:@"iPhone6,2"])   return @"iPhone 5S";
+    if ([correspondVersion isEqualToString:@"iPhone7,1"])   return @"iPhone 6 Plus";
+    if ([correspondVersion isEqualToString:@"iPhone7,2"])   return @"iPhone 6";
+    
+    if ([correspondVersion isEqualToString:@"iPod1,1"])     return@"iPod Touch 1";
+    if ([correspondVersion isEqualToString:@"iPod2,1"])     return@"iPod Touch 2";
+    if ([correspondVersion isEqualToString:@"iPod3,1"])     return@"iPod Touch 3";
+    if ([correspondVersion isEqualToString:@"iPod4,1"])     return@"iPod Touch 4";
+    if ([correspondVersion isEqualToString:@"iPod5,1"])     return@"iPod Touch 5";
+    
+    if ([correspondVersion isEqualToString:@"iPad1,1"])     return@"iPad 1";
+    if ([correspondVersion isEqualToString:@"iPad2,1"] || [correspondVersion isEqualToString:@"iPad2,2"] || [correspondVersion isEqualToString:@"iPad2,3"] || [correspondVersion isEqualToString:@"iPad2,4"])     return@"iPad 2";
+    if ([correspondVersion isEqualToString:@"iPad2,5"] || [correspondVersion isEqualToString:@"iPad2,6"] || [correspondVersion isEqualToString:@"iPad2,7"] )      return @"iPad Mini";
+    if ([correspondVersion isEqualToString:@"iPad3,1"] || [correspondVersion isEqualToString:@"iPad3,2"] || [correspondVersion isEqualToString:@"iPad3,3"] || [correspondVersion isEqualToString:@"iPad3,4"] || [correspondVersion isEqualToString:@"iPad3,5"] || [correspondVersion isEqualToString:@"iPad3,6"])      return @"iPad 3";
+    
+    return correspondVersion;
+}
+
+#End If
